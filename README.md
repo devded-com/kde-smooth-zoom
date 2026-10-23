@@ -1,55 +1,37 @@
 # Smooth Zoom for KDE Plasma
 
-**Apple-like desktop zoom. Hold `Super` and scroll. One command to install.**
+**ซูมเดสก์ท็อปแบบ Apple-like — กด `Super` ค้างแล้วเลื่อนล้อ**
 
 [![Release](https://img.shields.io/github/v/release/devded-com/kde-smooth-zoom?style=flat-square)](https://github.com/devded-com/kde-smooth-zoom/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![KDE Plasma 6](https://img.shields.io/badge/KDE%20Plasma-6.8%2B-1d99f3?style=flat-square)](https://kde.org/plasma-desktop/)
 
-Smooth Zoom is a small, opinionated **fork of the KDE Zoom preset**: a one-command
-installer plus a Plasma applet that configures KWin's native **Zoom** effect for
-the macOS-like feel:
+เป็น Plasma applet + installer สำหรับเปิดใช้ **Zoom effect ของ KWin**
+ให้ซูมตามจุดใต้เมาส์ ลื่น ๆ และกด `Super+0` กลับ 100%
 
-- `Super` + scroll up/down to zoom
-- the point under the pointer stays put (proportional tracking)
-- smooth compositor-level animation, 1.15× per wheel step
-- `Super+0` to return to 100%
-- a panel applet with toggle, zoom step, tracking, modifier and reset
-- native Wayland, multi-monitor, and Accessibility integration
-
-> **This is not a custom compositor plugin.** KWin already ships the hard part:
-> a native, color-managed, multi-output magnifier with accessibility hooks.
-> Reimplementing that as a third-party C++ effect would mean chasing KWin's
-> private ABI on every Plasma release. Smooth Zoom is a UX/installer fork of the
-> native preset, not a fork of KWin itself.
-
-Package id: `com.devded.kde-smooth-zoom`
+ติดตั้งง่าย ไม่ต้อง compile ไม่ต้อง sudo
 
 ---
 
-## ติดตั้งด้วยคำสั่งเดียว
+## ติดตั้ง 1 คำสั่ง
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/devded-com/kde-smooth-zoom/main/install.sh | bash
 ```
 
-สคริปต์จะติดตั้งทั้งหมดลงใน `~/.local` **ไม่ต้องใช้ sudo**:
+ติดตั้งให้ทั้งหมด:
 
-- `~/.local/bin/smooth-zoom` — CLI
-- `~/.local/share/applications/com.devded.kde-smooth-zoom.desktop` — ไอคอนเปิด/ปิด
-- `~/.local/share/plasma/plasmoids/com.devded.kde-smooth-zoom/` — panel applet
-- ตั้งค่า KWin เป็น `Super + scroll`, pointer-anchored, 1.15×
+- CLI `smooth-zoom`
+- Panel applet **Smooth Zoom**
+- ไอคอน **Smooth Zoom** ใน launcher (คลิกเปิด/ปิด)
+- ตั้งค่า `Super + scroll`, 1.15×, zoom ตามเมาส์ ให้เลย
 
-หลังติดตั้ง:
+ถ้าอยากให้เพิ่ม widget ลง panel อัตโนมัติ:
 
-| การใช้งาน | ผล |
-|---|---|
-| `Super` + scroll ขึ้น/ลง | Zoom in / out |
-| `Super` + `0` | กลับ 100% |
-| คลิกไอคอน **Smooth Zoom** ใน launcher | เปิด/ปิด effect |
-| คลิกขวา panel → Enter Edit Mode → Add Widgets… → **Smooth Zoom** | เพิ่ม widget บนแผง |
+```bash
+curl -fsSL https://raw.githubusercontent.com/devded-com/kde-smooth-zoom/main/install.sh | bash -s -- --add-to-panel
+```
 
-ถ้าไม่ต้องการ applet:
+ถ้าไม่เอา applet:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/devded-com/kde-smooth-zoom/main/install.sh | bash -s -- --no-applet
@@ -57,234 +39,123 @@ curl -fsSL https://raw.githubusercontent.com/devded-com/kde-smooth-zoom/main/ins
 
 ---
 
-## One-click applet install
+## ใช้งาน
 
-If you only want the panel applet, download the `.plasmoid` from the
-[latest release](https://github.com/devded-com/kde-smooth-zoom/releases/latest/download/com.devded.kde-smooth-zoom.plasmoid)
-and use **Install from File…** in the widget explorer, or:
+| ทำอะไร | ได้อะไร |
+|---|---|
+| `Super` + เลื่อนล้อขึ้น | ซูมเข้า |
+| `Super` + เลื่อนล้อลง | ซูมออก |
+| `Super` + `0` | กลับ 100% |
+| คลิกไอคอน **Smooth Zoom** | เปิด/ปิด effect |
+
+เพิ่ม widget: คลิกขวา panel → **Enter Edit Mode** → **Add Widgets…** → **Smooth Zoom**
+
+---
+
+## ติดตั้งเฉพาะ applet (one-click)
+
+ดาวน์โหลดไฟล์นี้:
+
+[com.devded.kde-smooth-zoom.plasmoid](https://github.com/devded-com/kde-smooth-zoom/releases/latest/download/com.devded.kde-smooth-zoom.plasmoid)
+
+แล้วไปที่ **Add Widgets… → Install from File…** หรือใช้คำสั่ง:
 
 ```bash
 kpackagetool6 -t Plasma/Applet -i ~/Downloads/com.devded.kde-smooth-zoom.plasmoid
 ```
 
-Then add **Smooth Zoom** to a panel. The applet bundles its own helper script,
-so it works without the CLI. Select **Super** under *Scroll modifier* and
-**1.15×** to get the same preset.
+จากนั้นเลือก **Super** ในช่อง Scroll modifier และตั้ง Zoom step เป็น **1.15×**
 
 ---
 
-## Settings
+## ตั้งค่า
 
-### GUI
+ใน applet มี:
+
+- เปิด/ปิด effect
+- Zoom step (1.05×–4.00×)
+- Pointer tracking
+- Scroll modifier
+- Reset 100%
+- ปุ่มเปิด Settings
+
+หรือตั้งละเอียดที่:
 
 **System Settings → Accessibility → Zoom**
 
 - **Zoom:** Full screen
-- **Pointer tracking:** Proportional (macOS-like) or Centered / Centered (Strict)
+- **Pointer tracking:** Proportional (แบบ macOS) หรือ Centered
 - **Zoom factor:** 1.15
-- **Scroll gesture modifier keys:** Meta (press the Windows key)
-- **Configure Shortcuts…** for `Zoom In`, `Zoom Out`, `Actual Size` (defaults: `Meta++`, `Meta+-`, `Meta+0`)
-
-The same page is available from the applet's **Settings** button.
+- **Scroll gesture modifier keys:** Meta
 
 ### CLI
 
 ```bash
 smooth-zoom status
-smooth-zoom status --json
-smooth-zoom preset apple          # Super + wheel, proportional, 1.15x
-smooth-zoom preset default        # Meta+Ctrl + wheel, KDE default modifier
-smooth-zoom set --factor 1.10
-smooth-zoom set --tracking centered
-smooth-zoom set --modifier Meta+Alt
+smooth-zoom preset apple
+smooth-zoom set --factor 1.10 --tracking centered
 smooth-zoom reset
 smooth-zoom toggle
-smooth-zoom settings              # opens Accessibility → Zoom
 ```
-
-Valid tracking values: `proportional`, `centered`, `centered-strict`, `push`,
-`disabled`. Modifiers: `Meta`, `Meta+Control`, `Meta+Alt`, `Control+Alt`, etc.
-Factor range: `1.05`–`4.00`.
-
-### Panel applet
-
-- master switch (on/off)
-- zoom step slider (1.05×–4.00×)
-- pointer tracking selector
-- scroll modifier selector
-- reset to 100%
-- open Accessibility settings
 
 ---
 
-## Requirements
+## ต้องมีอะไร
 
-- **KDE Plasma 6.8+** (tested on 6.8; the Accessibility scroll-modifier UI and
-  the `view_actual_size` reset action used here are present there)
-- KWin on **Wayland or X11**
-- `kreadconfig6`, `kwriteconfig6`, `qdbus6`, `kpackagetool6`
-- No root; everything is user-local
-
-Older Plasma 6 releases may have the native Zoom effect but not the scroll
-modifier setting. Check **Accessibility → Zoom → Scroll gesture modifier keys**.
+- KDE Plasma **6.8+**
+- Wayland หรือ X11
+- ไม่ต้อง root
 
 ---
 
-## How it works
-
-Smooth Zoom writes only these keys under `~/.config/kwinrc`:
-
-```ini
-[Plugins]
-zoomEnabled=true
-
-[Effect-zoom]
-ZoomFactor=1.15
-MouseTracking=0
-PointerAxisGestureModifiers=Meta
-UsePatternUpscaler=true
-InitialZoom=1.0
-```
-
-Then it asks KWin to reload the effect over D-Bus:
-
-```bash
-qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect zoom
-```
-
-The applet and CLI use the same small helper. No background daemon runs, so the
-idle cost is zero. `smooth-zoom reset` invokes KWin's own `view_actual_size`
-action, which avoids the `InitialZoom` save race you get from unloading and
-reloading the effect.
-
-### Why not a C++ effect?
-
-KWin's Zoom effect is built into the compositor as a static library. It handles
-offscreen rendering, color descriptions, multi-output viewports, cursor tracking,
-pinch gestures, and accessibility. A third-party binary effect would duplicate
-thousands of lines and need a rebuild for every KWin ABI change. The native
-effect already provides the smooth animation; this project packages the
-Apple-like preset and makes it pleasant to install and toggle.
-
----
-
-## Uninstall
+## ถอนการติดตั้ง
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/devded-com/kde-smooth-zoom/main/install.sh | bash -s -- --uninstall
 ```
 
-This removes the CLI, launchers, icon and applet, but keeps the KWin preset.
-To restore the settings that were saved before the first install:
+คืนค่าเดิมของ KWin ด้วย:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/devded-com/kde-smooth-zoom/main/install.sh | bash -s -- --uninstall --restore
 ```
 
-Local checkout:
-
-```bash
-./install.sh --uninstall
-./install.sh --uninstall --restore
-```
-
 ---
 
-## Troubleshooting
+## ถ้าใช้งานไม่ได้
 
-**Super + scroll does nothing**
+**`Super + scroll` ไม่ทำงาน**
 
 ```bash
 smooth-zoom status
-qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded zoom
 ```
 
-Check **System Settings → Accessibility → Zoom**:
-- Zoom is **Full screen**
-- Scroll gesture modifier keys is **Meta**
-- Zoom factor is not 1.0
+แล้วเช็ก **Accessibility → Zoom** ว่าเปิด Full screen, modifier เป็น Meta และ zoom factor ไม่ใช่ 1.0
 
-**Super opens Overview while zooming**
+**อยากให้ pointer อยู่กลางจอ**
 
-On some Plasma configurations a bare Meta shortcut is bound to Overview via
-`kwinrc [ModifierOnlyShortcuts]`. In **System Settings → Shortcuts**, set
-**Overview** to `Meta+W` (or remove the bare-Meta binding). Smooth Zoom only
-binds the scroll axis; it does not touch the Meta key.
+เลือก **Pointer tracking → Centered (Strict)**
+ส่วน **Proportional** คือแบบ macOS: จุดใต้เมาส์อยู่กับที่
 
-**Applet is missing from Add Widgets**
+**หา applet ไม่เจอ**
 
 ```bash
 kpackagetool6 -t Plasma/Applet -l | grep com.devded
 ```
 
-If it is not listed, reinstall:
+ถ้าไม่เจอ ให้ติดตั้งใหม่:
 
 ```bash
-./install.sh --no-apply
+curl -fsSL https://raw.githubusercontent.com/devded-com/kde-smooth-zoom/main/install.sh | bash -s -- --no-apply
 ```
-
-**Desktop icon does nothing**
-
-```bash
-~/.local/bin/smooth-zoom toggle
-```
-
-If that works but the icon does not, refresh the menu cache:
-
-```bash
-kbuildsycoca6 --noincremental
-```
-
-**I want the pointer to stay in the middle of the screen**
-
-In **Accessibility → Zoom → Pointer tracking**, choose **Centered (Strict)**.
-**Proportional** is the macOS-like behavior: the content under the pointer stays
-under the pointer.
 
 ---
 
-## Development
+## หมายเหตุ
 
-```bash
-git clone https://github.com/devded-com/kde-smooth-zoom.git
-cd kde-smooth-zoom
-
-make check          # bash -n + qmllint
-make applet         # dist/com.devded.kde-smooth-zoom.plasmoid
-make install        # run the installer from the checkout
-make uninstall
-```
-
-Preview the applet:
-
-```bash
-plasmoidviewer -a com.devded.kde-smooth-zoom
-```
-
-Layout:
-
-```text
-bin/smooth-zoom                 CLI + applet helper (single source)
-install.sh                      one-command installer / uninstaller
-desktop/                        launchers (Exec path templated by installer)
-icons/                          app icon
-plasma/applet/                  Plasma 6 applet package
-scripts/sync-applet.sh          copies the CLI into the applet package
-```
-
-The applet keeps a copy of `bin/smooth-zoom` under `contents/code/` so the
-`.plasmoid` is self-contained. `make check` verifies the copy is in sync.
-
----
-
-## Credits
-
-- The KWin team for the native **Zoom** effect and the Accessibility settings page.
-- The KDE Plasma and Kirigami communities.
-- [DePerto](https://github.com/dennisguim/deperto) for the GNOME counterpart.
-
-Not affiliated with KDE e.V.
+โปรเจกต์นี้ใช้ **Zoom effect ที่มีอยู่ใน KWin** แล้วทำตัวติดตั้งกับ applet
+ไม่ได้เขียน compositor effect ใหม่ จึงเสถียรและตาม Plasma update ได้ง่าย
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT — ดู [LICENSE](LICENSE)
