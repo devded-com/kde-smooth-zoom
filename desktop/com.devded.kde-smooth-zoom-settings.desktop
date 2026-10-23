@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Smooth Zoom Settings
+Name[th]=ตั้งค่า Smooth Zoom
+GenericName=Zoom Settings
+Comment=Open Accessibility → Zoom (KDE Plasma)
+Comment[th]=เปิดการตั้งค่า Accessibility → Zoom (KDE Plasma)
+Exec=systemsettings kcm_access
+Icon=preferences-desktop-accessibility
+Terminal=false
+Categories=Settings;Accessibility;
+Keywords=zoom;magnify;accessibility;
+StartupNotify=false

@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Smooth Zoom
+Name[th]=Smooth Zoom
+GenericName=Desktop Zoom
+GenericName[th]=ซูมเดสก์ท็อป
+Comment=Toggle Apple-like smooth desktop zoom (Super + scroll)
+Comment[th]=เปิด/ปิดการซูมเดสก์ท็อปแบบ Apple-like (Super + scroll)
+Exec="@SMOOTH_ZOOM_BIN@" toggle
+TryExec=@SMOOTH_ZOOM_BIN@
+Icon=com.devded.kde-smooth-zoom
+Terminal=false
+Categories=Accessibility;Utility;
+Keywords=zoom;magnify;magnifier;accessibility;screen;desktop;
+Keywords[th]=ซูม;ขยาย;magnifier;
+StartupNotify=false

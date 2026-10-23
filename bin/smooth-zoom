@@ -1,0 +1,431 @@
+#!/usr/bin/env bash
+#
+# smooth-zoom — Apple-like smooth desktop zoom for KDE Plasma
+#
+# This is a small control layer around KWin's built-in "Zoom" effect.
+# It does not reimplement compositing; it configures and drives the
+# native effect so Wayland, multi-monitor and accessibility all keep
+# working exactly as KWin intends.
+#
+# SPDX-License-Identifier: MIT
+# Part of com.devded.kde-smooth-zoom
+#
+set -euo pipefail
+
+APP_ID="com.devded.kde-smooth-zoom"
+VERSION="1.0.0"
+
+GROUP="Effect-zoom"
+EFFECT="zoom"
+KWINRC="${KWINRC:-$HOME/.config/kwinrc}"
+
+if command -v qdbus6 >/dev/null 2>&1; then
+    QDBUS="qdbus6"
+elif command -v qdbus >/dev/null 2>&1; then
+    QDBUS="qdbus"
+else
+    QDBUS=""
+fi
+
+KREAD="$(command -v kreadconfig6 || true)"
+KWRITE="$(command -v kwriteconfig6 || true)"
+
+err()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; }
+die()  { err "$*"; exit 1; }
+
+need_kwin() {
+    if [ -z "$QDBUS" ]; then
+        die "qdbus6 not found. Install the Qt 6 tools package."
+    fi
+    if ! "$QDBUS" org.kde.KWin /KWin >/dev/null 2>&1; then
+        die "KWin is not running. Start a KDE Plasma 6 session first."
+    fi
+}
+
+need_config() {
+    if [ -z "$KREAD" ] || [ -z "$KWRITE" ]; then
+        die "kreadconfig6/kwriteconfig6 not found. This tool is for KDE Plasma 6."
+    fi
+}
+
+kread() {
+    "$KREAD" --file "$KWINRC" --group "$GROUP" --key "$1" 2>/dev/null || true
+}
+
+kwrite() {
+    "$KWRITE" --file "$KWINRC" --group "$GROUP" --key "$1" "$2"
+}
+
+plugin_read() {
+    local value
+    value="$("$KREAD" --file "$KWINRC" --group Plugins --key zoomEnabled 2>/dev/null || true)"
+    printf '%s' "${value:-true}"
+}
+
+plugin_write() {
+    "$KWRITE" --file "$KWINRC" --group Plugins --key zoomEnabled "$1"
+}
+
+is_loaded() {
+    local value
+    value="$("$QDBUS" org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded "$EFFECT" 2>/dev/null || true)"
+    [ "$value" = "true" ]
+}
+
+load_effect() {
+    local value
+    value="$("$QDBUS" org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect "$EFFECT" 2>/dev/null || true)"
+    [ "$value" = "true" ]
+}
+
+unload_effect() {
+    "$QDBUS" org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect "$EFFECT" >/dev/null 2>&1 || true
+}
+
+reconfigure_effect() {
+    "$QDBUS" org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect "$EFFECT" >/dev/null 2>&1 || true
+}
+
+kwin_reconfigure() {
+    "$QDBUS" org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
+}
+
+tracking_name() {
+    case "$1" in
+        0) printf 'proportional' ;;
+        1) printf 'centered' ;;
+        2) printf 'push' ;;
+        3) printf 'disabled' ;;
+        4) printf 'centered-strict' ;;
+        *) printf 'unknown' ;;
+    esac
+}
+
+normalize_tracking() {
+    case "${1,,}" in
+        proportional|0)      printf '0' ;;
+        centered|1)          printf '1' ;;
+        centered-strict|strict|4) printf '4' ;;
+        push|2)              printf '2' ;;
+        disabled|none|3)     printf '3' ;;
+        *) return 1 ;;
+    esac
+}
+
+normalize_modifier() {
+    local input="$1"
+    local IFS='+'
+    local part
+    local -a parts=()
+    local -A seen=()
+
+    for part in $input; do
+        case "${part,,}" in
+            meta|super|win|windows) part="Meta" ;;
+            ctrl|control)           part="Control" ;;
+            alt)                    part="Alt" ;;
+            shift)                  part="Shift" ;;
+            '')                     continue ;;
+            *)                      return 1 ;;
+        esac
+        if [ -n "${seen[$part]:-}" ]; then
+            continue
+        fi
+        seen[$part]=1
+        parts+=("$part")
+    done
+
+    if [ ${#parts[@]} -eq 0 ]; then
+        return 1
+    fi
+
+    (IFS='+'; printf '%s' "${parts[*]}")
+}
+
+validate_factor() {
+    [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]] || return 1
+    awk -v f="$1" 'BEGIN { exit !(f >= 1.05 && f <= 4.0) }'
+}
+
+cmd_status() {
+    local want_json="false"
+    if [ "${1:-}" = "--json" ]; then
+        want_json="true"
+    fi
+
+    need_kwin
+    need_config
+
+    local loaded enabled factor tracking modifier initial tname
+    loaded="$("$QDBUS" org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded "$EFFECT" 2>/dev/null || true)"
+    loaded="${loaded:-false}"
+    enabled="$(plugin_read)"
+    factor="$(kread ZoomFactor)"; factor="${factor:-1.2}"
+    tracking="$(kread MouseTracking)"; tracking="${tracking:-0}"
+    modifier="$(kread PointerAxisGestureModifiers)"; modifier="${modifier:-Meta+Control}"
+    initial="$(kread InitialZoom)"; initial="${initial:-1.0}"
+    tname="$(tracking_name "$tracking")"
+
+    if [ "$want_json" = "true" ]; then
+        local loaded_json="false" enabled_json="false"
+        if [ "$loaded" = "true" ]; then loaded_json="true"; fi
+        if [ "$enabled" = "true" ]; then enabled_json="true"; fi
+        printf '{"loaded":%s,"enabled":%s,"factor":%s,"tracking":%s,"trackingName":"%s","modifier":"%s","initialZoom":%s,"version":"%s"}\n' \
+            "$loaded_json" "$enabled_json" "$factor" "$tracking" "$tname" "$modifier" "$initial" "$VERSION"
+    else
+        printf 'loaded=%s\n' "$loaded"
+        printf 'enabled=%s\n' "$enabled"
+        printf 'factor=%s\n' "$factor"
+        printf 'tracking=%s\n' "$tracking"
+        printf 'tracking_name=%s\n' "$tname"
+        printf 'modifier=%s\n' "$modifier"
+        printf 'initial_zoom=%s\n' "$initial"
+        printf 'version=%s\n' "$VERSION"
+    fi
+}
+
+cmd_set() {
+    need_kwin
+    need_config
+
+    local factor="" tracking="" modifier="" upscaler=""
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --factor)
+                [ $# -ge 2 ] || die "--factor requires a value"
+                factor="$2"
+                shift 2
+                ;;
+            --tracking)
+                [ $# -ge 2 ] || die "--tracking requires a value"
+                tracking="$2"
+                shift 2
+                ;;
+            --modifier)
+                [ $# -ge 2 ] || die "--modifier requires a value"
+                modifier="$2"
+                shift 2
+                ;;
+            --upscaler)
+                [ $# -ge 2 ] || die "--upscaler requires true or false"
+                upscaler="$2"
+                shift 2
+                ;;
+            *)
+                die "unknown option: $1"
+                ;;
+        esac
+    done
+
+    if [ -z "$factor" ] && [ -z "$tracking" ] && [ -z "$modifier" ] && [ -z "$upscaler" ]; then
+        die "nothing to set (use --factor, --tracking, --modifier, --upscaler)"
+    fi
+
+    if [ -n "$factor" ]; then
+        validate_factor "$factor" || die "zoom factor must be between 1.05 and 4.00"
+    fi
+
+    if [ -n "$tracking" ]; then
+        local raw_tracking="$tracking"
+        tracking="$(normalize_tracking "$raw_tracking")" || die "unknown tracking mode: $raw_tracking"
+    fi
+
+    if [ -n "$modifier" ]; then
+        local raw_modifier="$modifier"
+        modifier="$(normalize_modifier "$raw_modifier")" || die "invalid modifier: $raw_modifier"
+    fi
+
+    if [ -n "$upscaler" ]; then
+        case "${upscaler,,}" in
+            true|1|yes|on)  upscaler="true" ;;
+            false|0|no|off) upscaler="false" ;;
+            *) die "--upscaler must be true or false" ;;
+        esac
+    fi
+
+    if [ -n "$factor" ]; then
+        kwrite ZoomFactor "$factor"
+    fi
+    if [ -n "$tracking" ]; then
+        kwrite MouseTracking "$tracking"
+    fi
+    if [ -n "$modifier" ]; then
+        kwrite PointerAxisGestureModifiers "$modifier"
+    fi
+    if [ -n "$upscaler" ]; then
+        kwrite UsePatternUpscaler "$upscaler"
+    fi
+
+    reconfigure_effect
+    cmd_status
+}
+
+cmd_on() {
+    need_kwin
+    need_config
+
+    plugin_write "true"
+    if ! is_loaded; then
+        if ! load_effect; then
+            kwin_reconfigure
+        fi
+    fi
+    reconfigure_effect
+    cmd_status
+}
+
+cmd_off() {
+    need_kwin
+    need_config
+
+    plugin_write "false"
+    if is_loaded; then
+        unload_effect
+    fi
+    kwin_reconfigure
+    cmd_status
+}
+
+cmd_toggle() {
+    need_kwin
+    if is_loaded; then
+        cmd_off
+    else
+        cmd_on
+    fi
+}
+
+cmd_reset() {
+    need_kwin
+    need_config
+
+    if is_loaded; then
+        # Prefer the effect's own "actual size" action. Unlike unload/load,
+        # this cannot race the destructor's InitialZoom save.
+        if "$QDBUS" org.kde.kglobalaccel /component/kwin \
+                org.kde.kglobalaccel.Component.invokeShortcut view_actual_size \
+                >/dev/null 2>&1; then
+            # Let the zoom animation finish and the effect save InitialZoom.
+            sleep 1.1
+        else
+            # Fallback: unload, wait for the destructor, then load at 1.0.
+            unload_effect
+            sleep 0.4
+            kwrite InitialZoom "1.0"
+            if ! load_effect; then
+                kwin_reconfigure
+            fi
+            sleep 0.2
+        fi
+    fi
+
+    kwrite InitialZoom "1.0"
+    reconfigure_effect
+    cmd_status
+}
+
+cmd_zoom_in() {
+    need_kwin
+    "$QDBUS" org.kde.kglobalaccel /component/kwin \
+        org.kde.kglobalaccel.Component.invokeShortcut view_zoom_in >/dev/null 2>&1 || \
+        die "could not trigger Zoom In"
+}
+
+cmd_zoom_out() {
+    need_kwin
+    "$QDBUS" org.kde.kglobalaccel /component/kwin \
+        org.kde.kglobalaccel.Component.invokeShortcut view_zoom_out >/dev/null 2>&1 || \
+        die "could not trigger Zoom Out"
+}
+
+cmd_settings() {
+    local app=""
+    if command -v systemsettings >/dev/null 2>&1; then
+        app="$(command -v systemsettings)"
+    elif command -v kcmshell6 >/dev/null 2>&1; then
+        app="$(command -v kcmshell6)"
+    fi
+
+    if [ -z "$app" ]; then
+        die "System Settings not found"
+    fi
+
+    nohup "$app" kcm_access >/dev/null 2>&1 &
+    printf 'opened Accessibility → Zoom\n'
+}
+
+cmd_preset() {
+    local name="${1:-apple}"
+
+    case "$name" in
+        apple)
+            cmd_set --factor 1.15 --tracking proportional --modifier Meta --upscaler true >/dev/null
+            cmd_on >/dev/null
+            ;;
+        default)
+            cmd_set --factor 1.2 --tracking proportional --modifier Meta+Control --upscaler true >/dev/null
+            cmd_on >/dev/null
+            ;;
+        *)
+            die "unknown preset: $name (available: apple, default)"
+            ;;
+    esac
+
+    cmd_status
+}
+
+usage() {
+    cat <<EOF
+Smooth Zoom $VERSION — Apple-like desktop zoom for KDE Plasma
+
+Usage:
+  smooth-zoom                     Show current status
+  smooth-zoom status [--json]     Show current status
+  smooth-zoom on | off | toggle   Enable / disable the Zoom effect
+  smooth-zoom reset               Return to 100%
+  smooth-zoom zoom-in|zoom-out    Trigger one zoom step
+  smooth-zoom set [options]       Change settings
+  smooth-zoom preset apple|default
+  smooth-zoom settings            Open Accessibility → Zoom
+  smooth-zoom version
+
+Set options:
+  --factor 1.15                   Zoom step (1.05 - 4.00)
+  --tracking proportional         proportional|centered|centered-strict|push|disabled
+  --modifier Meta                 Meta, Meta+Control, Meta+Alt, Control+Alt...
+  --upscaler true                 Sharpen content while zoomed
+
+Examples:
+  smooth-zoom preset apple
+  smooth-zoom set --modifier Meta+Alt --factor 1.10
+  smooth-zoom reset
+
+After installing, hold Super (Meta) and scroll up/down to zoom.
+EOF
+}
+
+main() {
+    local cmd="${1:-status}"
+    if [ $# -gt 0 ]; then
+        shift
+    fi
+
+    case "$cmd" in
+        status)           cmd_status "$@" ;;
+        on|enable)        cmd_on ;;
+        off|disable)      cmd_off ;;
+        toggle)           cmd_toggle ;;
+        reset|actual-size) cmd_reset ;;
+        zoom-in|in)       cmd_zoom_in ;;
+        zoom-out|out)     cmd_zoom_out ;;
+        set)              cmd_set "$@" ;;
+        preset)           cmd_preset "$@" ;;
+        settings|preferences) cmd_settings ;;
+        version|--version|-V) printf '%s %s\n' "$APP_ID" "$VERSION" ;;
+        help|--help|-h)   usage ;;
+        *)                die "unknown command: $cmd (try: smooth-zoom help)" ;;
+    esac
+}
+
+main "$@"

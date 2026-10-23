@@ -1,0 +1,25 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install zip
+        run: sudo apt-get update && sudo apt-get install -y zip
+      - name: Shell syntax
+        run: |
+          bash -n bin/smooth-zoom
+          bash -n install.sh
+          bash -n scripts/sync-applet.sh
+      - name: Build applet
+        run: make applet
+      - name: Verify packaged helper
+        run: |
+          unzip -l dist/com.devded.kde-smooth-zoom.plasmoid
+          unzip -p dist/com.devded.kde-smooth-zoom.plasmoid contents/code/smooth-zoom | diff - bin/smooth-zoom

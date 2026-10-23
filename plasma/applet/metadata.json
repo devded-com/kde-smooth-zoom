@@ -1,0 +1,27 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "devded",
+                "Email": "hello@devded.com"
+            }
+        ],
+        "Category": "Accessibility",
+        "Description": "Apple-like smooth desktop zoom for KDE Plasma. Hold Super and scroll.",
+        "Description[th]": "ซูมเดสก์ท็อปแบบ Apple-like สำหรับ KDE Plasma กด Super ค้างแล้วเลื่อนล้อ",
+        "EnabledByDefault": false,
+        "Icon": "zoom-in",
+        "Id": "com.devded.kde-smooth-zoom",
+        "License": "MIT",
+        "Name": "Smooth Zoom",
+        "Name[th]": "Smooth Zoom",
+        "ServiceTypes": [
+            "Plasma/Applet"
+        ],
+        "Version": "1.0.0",
+        "Website": "https://github.com/devded-com/kde-smooth-zoom",
+        "BugReportUrl": "https://github.com/devded-com/kde-smooth-zoom/issues"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
