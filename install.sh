@@ -120,10 +120,17 @@ parse_args() {
 }
 
 resolve_source() {
-    local local_root
-    local_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd || true)"
+    local self="${BASH_SOURCE[0]:-}"
+    local local_root=""
 
-    if [ -f "$local_root/bin/smooth-zoom" ] && [ -f "$local_root/plasma/applet/metadata.json" ]; then
+    # When the script is piped (curl | bash), BASH_SOURCE is "bash" or
+    # /dev/stdin, not a regular file. In that case always download the
+    # requested ref instead of accidentally using the current directory.
+    if [ -n "$self" ] && [ "$self" != "bash" ] && [ "$self" != "/dev/stdin" ] && [ -f "$self" ]; then
+        local_root="$(cd -- "$(dirname -- "$self")" >/dev/null 2>&1 && pwd || true)"
+    fi
+
+    if [ -n "$local_root" ] && [ -f "$local_root/bin/smooth-zoom" ] && [ -f "$local_root/plasma/applet/metadata.json" ]; then
         SRC_DIR="$local_root"
         return
     fi
